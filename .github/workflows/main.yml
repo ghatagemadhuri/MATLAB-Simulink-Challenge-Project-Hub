@@ -1,0 +1,206 @@
+
+#include "eCAS_Chasis_Height_Control.h"
+#include "eCAS_Keys.h"
+
+#include "Solenoid_Control.h"
+
+static height_ctrl_ds_t fl_height_ctrl_ds;
+static height_ctrl_ds_t fr_height_ctrl_ds;
+static height_ctrl_ds_t rl_height_ctrl_ds;
+static height_ctrl_ds_t rr_height_ctrl_ds;
+
+ecas_error_codes_t ecas_height_control_process(ride_control_op_t ctrl_cmd, ecas_calib_consts_t calib_const, chassis_measurements_t meas_op)
+{
+	ecas_error_codes_t ret = ECAS_NO_ERROR;
+
+	fl_height_ctrl_ds.actual_height = meas_op.inst_height.front_left;
+	fr_height_ctrl_ds.actual_height = meas_op.inst_height.front_right;
+	rl_height_ctrl_ds.actual_height = meas_op.inst_height.rear_left;
+	rr_height_ctrl_ds.actual_height = meas_op.inst_height.rear_right;
+
+	if((!fl_height_ctrl_ds.height_ctrl_busy) && (ctrl_cmd.fl_below != HEIGHT_NO_ACTION))
+	{
+		fl_height_ctrl_ds.cmd = ctrl_cmd.fl_below;
+		fl_height_ctrl_ds.target_height = ctrl_cmd.fl_target_height;
+		fl_height_ctrl_ds.height_ctrl_busy = true;
+	}
+	else if (ctrl_cmd.fl_below == HEIGHT_NO_ACTION)
+	{
+		control_air_bellow(BELLOW_FRONT_LEFT, AIR_STOP);
+	}
+
+	if((!fr_height_ctrl_ds.height_ctrl_busy) && (ctrl_cmd.fr_below != HEIGHT_NO_ACTION))
+	{
+		fr_height_ctrl_ds.cmd = ctrl_cmd.fr_below;
+		fr_height_ctrl_ds.target_height = ctrl_cmd.fr_target_height;
+		fr_height_ctrl_ds.height_ctrl_busy = true;
+	}
+	else if (ctrl_cmd.fr_below == HEIGHT_NO_ACTION)
+	{
+		control_air_bellow(BELLOW_FRONT_RIGHT, AIR_STOP);
+	}
+
+	if((!rl_height_ctrl_ds.height_ctrl_busy) && (ctrl_cmd.rl_below != HEIGHT_NO_ACTION))
+	{
+		rl_height_ctrl_ds.cmd = ctrl_cmd.rl_below;
+		rl_height_ctrl_ds.target_height = ctrl_cmd.rl_target_height;
+		rl_height_ctrl_ds.height_ctrl_busy = true;
+	}
+	else if (ctrl_cmd.rl_below == HEIGHT_NO_ACTION)
+	{
+		control_air_bellow(BELLOW_REAR_LEFT, AIR_STOP);
+	}
+
+	if((!rr_height_ctrl_ds.height_ctrl_busy) && (ctrl_cmd.rr_below != HEIGHT_NO_ACTION))
+	{
+		rr_height_ctrl_ds.cmd = ctrl_cmd.rr_below;
+		rr_height_ctrl_ds.target_height = ctrl_cmd.rr_target_height;
+		rr_height_ctrl_ds.height_ctrl_busy = true;
+	}
+	else if (ctrl_cmd.rr_below == HEIGHT_NO_ACTION)
+	{
+		control_air_bellow(BELLOW_REAR_RIGHT, AIR_STOP);
+	}
+
+	/****************/
+	if((fl_height_ctrl_ds.height_ctrl_busy) && (ctrl_cmd.fl_below != HEIGHT_NO_ACTION))
+	{
+		if(ctrl_cmd.fl_below == HEIGHT_UP)
+		{
+			control_air_bellow(BELLOW_FRONT_LEFT, AIR_IN);
+		}
+		else if (ctrl_cmd.fl_below == HEIGHT_DOWN)
+		{
+			control_air_bellow(BELLOW_FRONT_LEFT, AIR_OUT);
+		}
+
+		if(fl_height_ctrl_ds.actual_height >= fl_height_ctrl_ds.target_height)
+		{
+			fl_height_ctrl_ds.cmd = HEIGHT_NO_ACTION;
+			control_air_bellow(BELLOW_FRONT_LEFT, AIR_STOP);
+			fl_height_ctrl_ds.height_ctrl_busy = false;
+			reset_key_events();
+		}
+	}
+
+	if((fr_height_ctrl_ds.height_ctrl_busy) && (ctrl_cmd.fr_below != HEIGHT_NO_ACTION))
+	{
+		if(ctrl_cmd.fr_below == HEIGHT_UP)
+		{
+			control_air_bellow(BELLOW_FRONT_RIGHT, AIR_IN);
+		}
+		else if (ctrl_cmd.fr_below == HEIGHT_DOWN)
+		{
+			control_air_bellow(BELLOW_FRONT_RIGHT, AIR_OUT);
+		}
+
+		if(fr_height_ctrl_ds.actual_height >= fr_height_ctrl_ds.target_height)
+		{
+			control_air_bellow(BELLOW_FRONT_RIGHT, AIR_STOP);
+			fr_height_ctrl_ds.height_ctrl_busy = false;
+			reset_key_events();
+		}
+	}
+
+	if((rl_height_ctrl_ds.height_ctrl_busy) && (ctrl_cmd.rl_below != HEIGHT_NO_ACTION))
+	{
+		if(ctrl_cmd.rl_below == HEIGHT_UP)
+		{
+			control_air_bellow(BELLOW_REAR_LEFT, AIR_IN);
+		}
+		else if (ctrl_cmd.rl_below == HEIGHT_DOWN)
+		{
+			control_air_bellow(BELLOW_REAR_LEFT, AIR_OUT);
+		}
+
+		if(rl_height_ctrl_ds.actual_height >= rl_height_ctrl_ds.target_height)
+		{
+			control_air_bellow(BELLOW_REAR_LEFT, AIR_STOP);
+			rl_height_ctrl_ds.height_ctrl_busy = false;
+			reset_key_events();
+		}
+	}
+
+	if((rr_height_ctrl_ds.height_ctrl_busy) && (ctrl_cmd.rr_below != HEIGHT_NO_ACTION))
+	{
+		if(ctrl_cmd.rr_below == HEIGHT_UP)
+		{
+			control_air_bellow(BELLOW_REAR_RIGHT, AIR_IN);
+		}
+		else if (ctrl_cmd.rr_below == HEIGHT_DOWN)
+		{
+			control_air_bellow(BELLOW_REAR_RIGHT, AIR_OUT);
+		}
+
+		if(rr_height_ctrl_ds.actual_height >= rr_height_ctrl_ds.target_height)
+		{
+			control_air_bellow(BELLOW_REAR_RIGHT, AIR_STOP);
+			rr_height_ctrl_ds.height_ctrl_busy = false;
+			reset_key_events();
+		}
+	}
+
+	return ret;
+}
+
+
+ecas_error_codes_t ecas_height_control_no_busy(ride_control_op_t ctrl_cmd, ecas_calib_consts_t calib_const, chassis_measurements_t meas_op)
+{
+	ecas_error_codes_t ret = ECAS_NO_ERROR;
+
+	if(ctrl_cmd.fl_below == HEIGHT_UP)
+	{
+		control_air_bellow(BELLOW_FRONT_LEFT, AIR_IN);
+	}
+	else if (ctrl_cmd.fl_below == HEIGHT_DOWN)
+	{
+		control_air_bellow(BELLOW_FRONT_LEFT, AIR_OUT);
+	}
+	else
+	{
+		control_air_bellow(BELLOW_FRONT_LEFT, AIR_STOP);
+	}
+
+	if(ctrl_cmd.fr_below == HEIGHT_UP)
+	{
+		control_air_bellow(BELLOW_FRONT_RIGHT, AIR_IN);
+	}
+	else if (ctrl_cmd.fr_below == HEIGHT_DOWN)
+	{
+		control_air_bellow(BELLOW_FRONT_RIGHT, AIR_OUT);
+	}
+	else
+	{
+		control_air_bellow(BELLOW_FRONT_RIGHT, AIR_STOP);
+	}
+
+	if(ctrl_cmd.rl_below == HEIGHT_UP)
+	{
+		control_air_bellow(BELLOW_REAR_LEFT, AIR_IN);
+	}
+	else if (ctrl_cmd.rl_below == HEIGHT_DOWN)
+	{
+		control_air_bellow(BELLOW_REAR_LEFT, AIR_OUT);
+	}
+	else
+	{
+		control_air_bellow(BELLOW_REAR_LEFT, AIR_STOP);
+	}
+
+	if(ctrl_cmd.rr_below == HEIGHT_UP)
+	{
+		control_air_bellow(BELLOW_REAR_RIGHT, AIR_IN);
+	}
+	else if (ctrl_cmd.rr_below == HEIGHT_DOWN)
+	{
+		control_air_bellow(BELLOW_REAR_RIGHT, AIR_OUT);
+	}
+	else
+	{
+		control_air_bellow(BELLOW_REAR_RIGHT, AIR_STOP);
+	}
+
+
+	return ret;
+}
+
